@@ -1,81 +1,120 @@
-mdc_sd = function(c, lambda, scores, rank_scores, conf, alpha_range,
-                  delta_i.list, n_count, L_sort, custom_scores, winning_given,
-                  W_order, permW, n, counted_hyp, W) {
+fdp_sd = function(scores_and_labels,
+                  c, lambda, alpha, conf,
+                  procedure = "standard") {
+  # Extract scores and labels
+  W = scores_and_labels[, 1]
+  L = scores_and_labels[, 2]
+  n = length(W)
+  n_count = sum(L != 0)
+  counted_hyp = which(L != 0)
 
-  # Compute winning scores and labels
-  mirandom(scores, rank_scores, c, lambda, include_uncounted = FALSE)
+  # Permutation to break ties in W at random
+  permW = sample(1:n_count, n_count, replace = FALSE)
+  W_order = order(W[counted_hyp][permW], decreasing = TRUE)
 
-  # Storage for the scores and indices of discoveries
-  nqs = length(alpha_range)
-  Discoveries = as.list(rep(0, nqs))
-  Discoveries_ind = as.list(rep(0, nqs))
+  # First permute the winning scores and then order
+  W_sort = W[counted_hyp][permW][W_order]
+  L_sort = L[counted_hyp][permW][W_order]
 
+  # Compute R(c, lambda) and i_0
   R_c_lam = (1 - lambda) / (1 - lambda + c)
   m_conf = ceiling(-log(1 / conf, base = 1 - R_c_lam) - 1e-13)
+  i_0 = max(1, ceiling((m_conf - 1) / alpha - 1e-13))
 
-  alpha_index = 1
-
-  for (alpha in alpha_range) {
-
-    delta_i.values = delta_i.list[[as.character(alpha)]]
-    i_0 = max(1, ceiling((m_conf - 1) / alpha_range[alpha_index] - 1e-13))
-
-    if (i_0 > n_count) {
-      threshold = 0
-
-    } else {
-
-      for (j in i_0:n_count) {
-
-        d_j = sum(L_sort[1:j])
-
-        if (j == i_0 & d_j > delta_i.values[j]) {
-          threshold = 0
-          break
-
-        } else if (j != n_count & d_j <= delta_i.values[j]) {
+  # Compute FDP-SD threshold
+  if (i_0 > n_count) {
+    threshold = 0
+  } else {
+    if (procedure == "coinflip") {
+      delta_old = -1
+      delta_new = -1
+      bardelta_old = 0
+      bardelta_new = 0
+      omega_old = 1
+      omega_new = 1
+    }
+    for (j in i_0:n_count) {
+      d_j = sum((L_sort == -1)[1:j])
+      for (d in 0:j) {
+        k = floor((j - d) * alpha + 1e-13) + 1
+        if (d != j & stats::pbinom(d, k + d, R_c_lam) - 1e-12 <= conf) {
           next
-
-        } else if (j == n_count & d_j <= delta_i.values[j]) {
-          threshold = j
-          break
-
+        } else if (
+            d == j & stats::pbinom(d, k + d, R_c_lam) - 1e-12 <= conf
+          ) {
+          delta_new = j
+          if (procedure == "coinflip") {
+            p_floor = stats::pbinom(j, 1 + j, R_c_lam) - 1e-12
+            p_ceil = 1
+            omega_new = (p_ceil - conf) / (p_ceil - p_floor)
+            if (bardelta_old == delta_new + 1) {
+              bardelta_new = delta_new + 1
+            } else if (delta_new > delta_old) {
+              bardelta_new = delta_new + (stats::runif(1) > omega_new)
+            } else {
+              bardelta_new = delta_new +
+                               (stats::runif(1) > omega_new / omega_old)
+            }
+          }
         } else {
-          threshold = j - 1
-          break
-
+          delta_new = d - 1
+          if (procedure == "coinflip") {
+            k = floor((j - d + 1) * alpha + 1e-13) + 1
+            p_floor = stats::pbinom(d - 1, k + d - 1, R_c_lam) - 1e-12
+            k = floor((j - d) * alpha + 1e-13) + 1
+            p_ceil = stats::pbinom(d, k + d, R_c_lam)
+            omega_new = (p_ceil - conf) / (p_ceil - p_floor)
+            if (bardelta_old == delta_new + 1) {
+              bardelta_new = delta_new + 1
+            } else if (delta_new > delta_old) {
+              bardelta_new = delta_new + (stats::runif(1) > omega_new)
+            } else {
+              bardelta_new = delta_new +
+                               (stats::runif(1) > omega_new / omega_old)
+            }
+          }
         }
+        if (procedure == "coinflip") {
+          omega_old = omega_new
+          delta_old = delta_new
+          bardelta_old = bardelta_new
+        }
+        break
       }
-    }
 
-    if(threshold > 0) {
-
-      if (!custom_scores || winning_given == FALSE) {
-        Last_Disc = threshold
-        Disc = which(L_sort[1:Last_Disc] == 0)
-
-        # Find the original indices of the rejected hypotheses
-        # before we did our reordering
-        discoveries_ind = W_order[Disc]
-        Discoveries_ind[[alpha_index]] = permW[discoveries_ind]
-        Discoveries_ind[[alpha_index]] = c(1:n)[counted_hyp][
-                                                 Discoveries_ind[[alpha_index]]
-                                               ]
-
+      if (
+        j == i_0 &
+        d_j > ifelse(procedure == "coinflip", bardelta_new, delta_new)
+      ) {
+        threshold = 0
+        break
+      } else if (
+        j != n_count &
+        d_j <= ifelse(procedure == "coinflip", bardelta_new, delta_new)
+      ) {
+        next
+      } else if (
+        j == n_count &
+        d_j <= ifelse(procedure == "coinflip", bardelta_new, delta_new)
+      ) {
+        threshold = j
+        break
       } else {
-        Last_Disc = threshold
-        Discoveries_ind[[alpha_index]] = which(L_sort[1:Last_Disc] == 0)
+        threshold = j - 1
+        break
       }
-
-      Discoveries[[alpha_index]] = W[Discoveries_ind[[alpha_index]]]
-
-    } else {
-      Discoveries_ind[[alpha_index]] = numeric(0)
-      Discoveries[[alpha_index]] = numeric(0)
     }
-
-    alpha_index = alpha_index + 1
   }
 
-  return(list(Discoveries = Discoveries, Discoveries_ind = Discoveries_ind))
+  if(threshold > 0) {
+    discoveries = which(L_sort[1:threshold] == 1)
+    # Original indices of rejected hypotheses
+    discoveries_ind = c(1:n)[counted_hyp][permW[W_order[discoveries]]]
+    discoveries = W[discoveries_ind]
+  } else {
+    discoveries_ind = numeric(0)
+    discoveries = numeric(0)
+  }
+
+  return(list(discoveries = discoveries, discoveries_ind = discoveries_ind))
 }

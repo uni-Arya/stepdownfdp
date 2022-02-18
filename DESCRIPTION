@@ -1,5 +1,5 @@
 Package: stepdownfdp
-Title: What the Package Does (One Line, Title Case)
+Title: A Stepdown Method to Control the False Discovery Proportion
 Version: 0.0.0.9000
 Authors@R: 
     person(
@@ -7,13 +7,14 @@ Authors@R:
       "aeba3842@uni.sydney.edu.au", 
       role = c("aut", "cre")
     )
-Description: A stepdown procedure for competition-based FDP control.
+Description: Given a collection of target/decoy scores for m hypotheses,
+             these functions compute winning scores/labels and return
+             a list of discoveries in which the FDP is controlled.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.2
 URL: https://github.com/uni-Arya/stepdownfdp
-Imports: 
-    parallel,
+Imports:
     pracma,
     stats
