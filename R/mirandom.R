@@ -1,4 +1,53 @@
-mirandom = function(scores, c, lambda) {
+#' Convert target/decoy scores into winning scores and labels
+#'
+#' \code{mirandom} takes a collection of target and decoy scores for m
+#' hypotheses and returns a winning score and label attached to each.
+#' The argument \code{scores} must be organised in an m x (d + 1) matrix,
+#' where d is the number of decoy scores. The first column of \code{scores}
+#' must contain the target scores.
+#'
+#' @param scores An m x (d + 1) matrix where m is the number of hypothesis and
+#' d is the number of decoy scores for each hypothesis. The first column of
+#' \code{scores} are target scores and subsequent columns are decoy scores.
+#' @param c Determines the ranks of the target score that are considered
+#' winning. Defaults to \code{c = 0.5} for single-decoy FDP-SD.
+#' @param lambda Determines the ranks of the target score that are
+#' considered losing. Defaults to \code{lambda = 0.5} for single-decoy FDP-SD.
+#'
+#' @return A m x 2 matrix where m is the number of hypotheses. The first column
+#' contains the winning scores and the second column contains the corresponding
+#' labels.
+#' @export
+#'
+#' @examples
+#' target_scores <- rnorm(200, mean = 1.5)
+#' decoy_scores <- matrix(rnorm(600, mean = 0), ncol = 3)
+#' scores <- cbind(target_scores, decoy_scores)
+#' mirandom(scores)
+mirandom = function(scores, c = 0.5, lambda = 0.5) {
+
+  if (c > lambda) {
+    stop("Please choose c <= lambda.")
+  }
+  if (!is.matrix(scores)) {
+    stop("Please input a valid matrix of target and decoy scores. Make sure
+       the first column of [scores] are target scores and subsequent columns
+       decoy scores.")
+  }
+  if (!(dim(scores)[2] > 1)) {
+    stop("No decoy scores detected. Make sure the first column of the [scores]
+       matrix are target scores and subsequent columns decoy scores.")
+  }
+  # Number of decoys
+  n_p = ncol(scores) - 1
+  if (
+    !isTRUE(all.equal((((n_p + 1) * c)) %% 1, 0)) ||
+    !isTRUE(all.equal((((n_p + 1) * lambda)) %% 1, 0))
+  ) {
+    stop("Please select both c and lambda of the form k/(d+1) where d is
+       the number of decoy scores for each hypothesis and k is an integer
+       between 1 and d (inclusive).")
+  }
 
   ## Initialisation ##
 
@@ -13,9 +62,6 @@ mirandom = function(scores, c, lambda) {
 
   # Number of hypotheses
   n = length(obs_score)
-
-  # Number of decoys
-  n_p = ncol(scores) - 1
 
   # Storage for winning scores
   W = rep(0, n)

@@ -1,6 +1,52 @@
+#' Convert winning scores and labels into discoveries
+#'
+#' \code{fdp_sd} takes the output of \code{mirandom} and additional
+#' statistical parameters to return the indices and winning scores of
+#' hypotheses that were rejected.
+#'
+#' @param scores_and_labels An m x 2 matrix obtained via \code{mirandom}.
+#' @param alpha An FDP threshold.
+#' @param conf To control the FDP with \code{1 - conf} confidence.
+#' @param c Determines the ranks of the target score that are considered
+#' winning. Defaults to \code{c = 0.5} for single-decoy FDP-SD.
+#' @param lambda Determines the ranks of the target score that are
+#' considered losing. Defaults to \code{lambda = 0.5} for single-decoy FDP-SD.
+#' @param procedure Takes a value of "standard" (for non-randomised FDP-SD) or
+#' "coinflip" (for randomised FDP-SD).
+#'
+#' @return A list of 2 objects: the winning scores (\code{discoveries}) and
+#' indices (\code{discoveries_ind}) of rejected hypotheses.
+#' @export
+#'
+#' @examples
+#' set.seed(123)
+#' target_scores <- rnorm(200, mean = 1.5)
+#' decoy_scores <- matrix(rnorm(600, mean = 0), ncol = 3)
+#' scores <- cbind(target_scores, decoy_scores)
+#' scores_and_labels <- mirandom(scores)
+#' fdp_sd(scores_and_labels, alpha = 0.1, conf = 0.1)
 fdp_sd = function(scores_and_labels,
-                  c, lambda, alpha, conf,
+                  alpha, conf,
+                  c = 0.5, lambda = 0.5,
                   procedure = "standard") {
+
+  if (c > lambda) {
+    stop("Please choose c <= lambda.")
+  }
+  if (alpha <= 0 || alpha >= 1) {
+    stop("Please choose alpha in (0, 1).")
+  }
+  if (conf <= 0 || conf >= 1) {
+    stop("Please choose conf in (0, 1).")
+  }
+  if (procedure != "standard" && procedure != "coinflip") {
+    stop("Please choose procedure to be [standard] or [coinflip].")
+  }
+  if (dim(scores_and_labels)[2] != 2) {
+    stop("More than 2 columns detected in [scores_and_labels]. Are you using
+       the correct matrix obtained from mirandom()?")
+  }
+
   # Extract scores and labels
   W = scores_and_labels[, 1]
   L = scores_and_labels[, 2]
