@@ -6,11 +6,14 @@
 <!-- badges: start -->
 <!-- badges: end -->
 
-This package provides functionality to convert a collection of
-target/decoy scores, obtained from competition-based statistical
-procedures, to a list of rejections. In this list of rejections, the
-proportion of false discoveries is bounded by a prespecified tolerance
-*α* ∈ (0,1) with probability at least 1 − *γ* ∈ (0,1).
+This package provides a step-down procedure for controlling the False
+Discovery Proportion (FDP) in a competition-based setup. This includes
+target-decoy competition (TDC) in computational mass spectrometry and
+the knockoff construction in regression. FDP control (also referred to
+as FDX) is probabilistic in nature: given a prespecified FDP tolerance
+*α* ∈ (0,1) and a desired confidence level 1 − *γ* the procedure reports
+a list of discoveries for which the FDP is  ≤ *α* with probability
+ ≥ 1 − *γ*.
 
 ## Installation
 
@@ -26,15 +29,14 @@ devtools::install_github("uni-Arya/stepdownfdp")
 
 ### With a single decoy
 
-For use in a single-decoy experiment, the user needs to specify a
-collection of target/decoy scores for each hypothesis, an FDP threshold
+For use in a single-decoy experiment, the user must input a collection
+of target/decoy scores for each hypothesis, an FDP threshold
 *α* ∈ (0,1), and a confidence level *γ* ∈ (0,1).
 
-We first use `mirandom` to convert target/decoy scores into winning
-scores and labels. For input, the argument `scores` is required to be an
-*m* × 2 matrix, where *m* is the number of hypotheses. Note: it is
-important to make sure that the first column of `scores` corresponds to
-target scores.
+First use `mirandom()` to convert target/decoy scores into winning
+scores and labels. The argument `scores` must be an *m* × 2 matrix,
+where *m* is the number of hypotheses. Make sure that the first column
+of `scores` corresponds to target scores.
 
 ``` r
 library(stepdownfdp)
@@ -53,10 +55,9 @@ head(scores_and_labels)
 #> [6,] 3.465065    1
 ```
 
-After obtaining the output from `mirandom` we can pass it through
-`fdp_sd` to return the winning scores and indices of hypotheses that
-were rejected. Note that the output is ordered in decreasing order of
-winning scores.
+Pass the output of `mirandom()` into `fdp_sd()` to return the winning
+scores and indices of hypotheses that were rejected. The output of
+`fdp_sd()` is in decreasing order of winning scores.
 
 ``` r
 results  <- fdp_sd(scores_and_labels, alpha = 0.1, conf = 0.1)
@@ -75,20 +76,21 @@ indices
 
 ### With multiple decoys
 
-For use in a multiple-decoy experiment, the user needs to specify, in
-addition, parameters *c* ≤ *λ* of the form *k*/(*d*+1) where *d* is the
-total number of decoy scores used for each hypothesis and 1 ≤ *k* ≤ *d*
-is an integer. As an example, if we compute 3 decoy scores for each
-hypothesis, we may take *c* to be 1/4, 1/2, or 3/4. The value of *c*
-determines the rank in which the target score may fall to be considered
+For use in a multiple-decoy experiment, the user must also input
+parameters *c* ≤ *λ* of the form *k*/(*d*+1) where *d* is the number of
+decoy scores used for each hypothesis and 1 ≤ *k* ≤ *d* is an integer.
+As an example, if we compute 3 decoy scores for each hypothesis, we may
+take *c* and *λ* to be 1/4, 1/2, or 3/4, subject to *c* ≤ *λ*. The value
+of *c* determines the ranks in which the target score is considered
 “winning.” E.g., if *c* = 1/4, *H*<sub>*i*</sub> is labelled as a target
 win whenever its corresponding target score is the highest ranked score
-among all targets/decoys for that hypothesis.
+among all targets/decoys for that hypothesis. Similarly, *λ* determines
+when the target score is “losing.”
 
-The argument `scores` is now required to be an *m* × (*d*+1) matrix,
-where *m* is the number of hypotheses and *d* is the number of decoy
-scores for each. As in the single-decoy case, the first column must
-consist of target scores.
+The argument `scores` of `mirandom()` must now be an *m* × (*d*+1)
+matrix, where *m* is the number of hypotheses and *d* is the number of
+decoy scores for each. As in the single-decoy case, the first column
+must consist of target scores.
 
 ``` r
 library(stepdownfdp)
@@ -96,7 +98,7 @@ set.seed(123)
 target_scores     <- rnorm(200, mean = 1.75)
 decoy_scores      <- matrix(rnorm(600, mean = 0), ncol = 3)
 scores            <- cbind(target_scores, decoy_scores)
-scores_and_labels <- mirandom(scores, c = 0.25, 0.75)
+scores_and_labels <- mirandom(scores, c = 0.25, lambda = 0.75)
 head(scores_and_labels)
 #>          [,1] [,2]
 #> [1,] 2.198810    0
@@ -107,7 +109,8 @@ head(scores_and_labels)
 #> [6,] 3.465065    1
 ```
 
-Make sure to pass the same *c* and *λ* values to `fdp_sd`.
+Pass the output into `fdp_sd()`, making sure to specify the same *c* and
+*λ* values used in `mirandom()`.
 
 ``` r
 results  <- fdp_sd(scores_and_labels, alpha = 0.1, conf = 0.1, c = 0.25, lambda = 0.75)
@@ -130,7 +133,7 @@ indices
 
 The user can also invoke the randomised version of both single-decoy and
 multiple-decoy procedures by passing `procedure = "coinflip"` into
-`fdp_sd`.
+`fdp_sd()`.
 
 ``` r
 results  <- fdp_sd(scores_and_labels, alpha = 0.1, conf = 0.1, c = 0.25, lambda = 0.75, 
