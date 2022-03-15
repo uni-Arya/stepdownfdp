@@ -7,7 +7,8 @@
 <!-- badges: end -->
 
 This package provides a step-down procedure for controlling the False
-Discovery Proportion (FDP) in a competition-based setup. This includes
+Discovery Proportion (FDP) in a competition-based setup (see [Dong et
+al. (2022)](https://arxiv.org/abs/2011.11939)). This includes
 target-decoy competition (TDC) in computational mass spectrometry and
 the knockoff construction in regression. FDP control (also referred to
 as FDX) is probabilistic in nature: given a prespecified FDP tolerance
